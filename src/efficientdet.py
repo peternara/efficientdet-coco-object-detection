@@ -16,6 +16,15 @@ def nms(dets, thresh):
     return nms_torch(dets[:, :4], dets[:, 4], thresh)
 
 
+class MemoryEfficientSwish(nn.Module):
+    def forward(self, x):
+        return SwishImplementation.apply(x)
+
+class Swish(nn.Module):
+    def forward(self, x):
+        return x * torch.sigmoid(x)
+    
+
 class ConvBlock(nn.Module):
     def __init__(self, num_channels):
         super(ConvBlock, self).__init__()
@@ -52,6 +61,9 @@ class BiFPN(nn.Module):
         self.p5_downsample = nn.MaxPool2d(kernel_size=2)
         self.p6_downsample = nn.MaxPool2d(kernel_size=2)
         self.p7_downsample = nn.MaxPool2d(kernel_size=2)
+        
+        #
+        self.swish = MemoryEfficientSwish() if not onnx_export else Swish()
 
         # Weight
         self.p6_w1 = nn.Parameter(torch.ones(2))
@@ -88,6 +100,10 @@ class BiFPN(nn.Module):
         weight = p6_w1 / (torch.sum(p6_w1, dim=0) + self.epsilon)
         # Connections for P6_0 and P7_0 to P6_1 respectively
         p6_up = self.conv6_up(weight[0] * p6_in + weight[1] * self.p6_upsample(p7_in))
+        # https://github.com/JaeMinSSG/EfficientDet/blob/master/efficientdet/model.py에서는
+        #    swish 사용 > ?
+        # p6_up = self.conv6_up(self.swish(weight[0] * p6_in + weight[1] * self.p6_upsample(p7_in)))
+        
         # Weights for P5_0 and P6_0 to P5_1
         p5_w1 = self.p5_w1_relu(self.p5_w1)
         weight = p5_w1 / (torch.sum(p5_w1, dim=0) + self.epsilon)
