@@ -96,10 +96,18 @@ class BiFPN(nn.Module):
         p3_in, p4_in, p5_in, p6_in, p7_in = inputs
         # P7_0 to P7_2
         # Weights for P6_0 and P7_0 to P6_1
+        #print('self.p6_w1 - ', self.p6_w1.shape) # torch.Size([2])
+        #print(self.p6_w1) # tensor([0.9998, 1.0002], device='cuda:0', requires_grad=True)
         p6_w1 = self.p6_w1_relu(self.p6_w1)
         weight = p6_w1 / (torch.sum(p6_w1, dim=0) + self.epsilon)
+        #print('weight - ', weight.shape) # torch.Size([2])
+        #print(weight) # tensor([0.4999, 0.5001], device='cuda:0', grad_fn=<DivBackward0>) 
+        #print('p6_in  - ', p6_in.shape) # torch.Size([8, 64, 8, 8])
+        #print('p7_in  - ', p7_in.shape) # torch.Size([8, 64, 4, 4])
+        
         # Connections for P6_0 and P7_0 to P6_1 respectively
         p6_up = self.conv6_up(weight[0] * p6_in + weight[1] * self.p6_upsample(p7_in))
+        #print('p6_up  - ', p6_up.shape) # torch.Size([8, 64, 8, 8])
         # https://github.com/JaeMinSSG/EfficientDet/blob/master/efficientdet/model.py에서는
         #    swish 사용 > ?
         # p6_up = self.conv6_up(self.swish(weight[0] * p6_in + weight[1] * self.p6_upsample(p7_in)))
